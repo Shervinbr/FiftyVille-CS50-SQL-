@@ -1,0 +1,97 @@
+-- Find the report for the theft.
+SELECT description
+FROM crime_scene_reports
+WHERE year = 2025
+  AND month = 7
+  AND day = 28
+  AND street = 'Humphrey Street';
+
+-- Read the witnesses' accounts.
+SELECT name, transcript
+FROM interviews
+WHERE year = 2025
+  AND month = 7
+  AND day = 28
+  AND transcript LIKE '%bakery%';
+
+-- Find the earliest flight out of Fiftyville the next day.
+SELECT flights.id, flights.hour, flights.minute, destination.city
+FROM flights
+JOIN airports AS origin
+  ON origin.id = flights.origin_airport_id
+JOIN airports AS destination
+  ON destination.id = flights.destination_airport_id
+WHERE origin.city = 'Fiftyville'
+  AND flights.year = 2025
+  AND flights.month = 7
+  AND flights.day = 29
+ORDER BY flights.hour, flights.minute
+LIMIT 1;
+
+-- Find the person matching all four clues.
+-- Result: Bruce.
+SELECT name
+FROM people
+WHERE license_plate IN (
+    -- Cars leaving within ten minutes of the theft.
+    SELECT license_plate
+    FROM bakery_security_logs
+    WHERE year = 2025
+      AND month = 7
+      AND day = 28
+      AND hour = 10
+      AND minute BETWEEN 15 AND 25
+      AND activity = 'exit'
+)
+AND id IN (
+    -- People who withdrew money at the Leggett Street ATM.
+    SELECT bank_accounts.person_id
+    FROM bank_accounts
+    JOIN atm_transactions
+      ON atm_transactions.account_number = bank_accounts.account_number
+    WHERE atm_transactions.year = 2025
+      AND atm_transactions.month = 7
+      AND atm_transactions.day = 28
+      AND atm_location = 'Leggett Street'
+      AND transaction_type = 'withdraw'
+)
+AND phone_number IN (
+    -- People who made a call lasting less than a minute.
+    SELECT caller
+    FROM phone_calls
+    WHERE year = 2025
+      AND month = 7
+      AND day = 28
+      AND duration < 60
+)
+AND passport_number IN (
+    -- Passengers on the earliest flight the next day.
+    SELECT passport_number
+    FROM passengers
+    WHERE flight_id = (
+        SELECT flights.id
+        FROM flights
+        JOIN airports ON airports.id = flights.origin_airport_id
+        WHERE airports.city = 'Fiftyville'
+          AND flights.year = 2025
+          AND flights.month = 7
+          AND flights.day = 29
+        ORDER BY flights.hour, flights.minute
+        LIMIT 1
+    )
+);
+
+-- Identify the person Bruce called.
+-- Result: Robin.
+SELECT people.name, phone_calls.duration
+FROM phone_calls
+JOIN people ON people.phone_number = phone_calls.receiver
+WHERE phone_calls.caller = (
+    SELECT phone_number
+    FROM people
+    WHERE name = 'Bruce'
+)
+  AND phone_calls.year = 2025
+  AND phone_calls.month = 7
+  AND phone_calls.day = 28
+  AND phone_calls.duration < 60;
